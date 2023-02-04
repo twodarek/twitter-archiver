@@ -19,7 +19,7 @@ func main() {
 	truePtr := true
 	listParams := twitter.FavoriteListParams{
 		ScreenName:      "thomaswodarek",
-		Count:           200,
+		Count:           1,
 		IncludeEntities: &truePtr,
 	}
 	favorites, res, err := client.Favorites.List(&listParams)
@@ -27,9 +27,16 @@ func main() {
 		fmt.Printf("Unable to get list of favorite tweets.  Error: %s", err)
 	}
 
-	usersToPullInfoFor := []twitter.User{}
+	usersInfo := map[string]twitter.User{}
 	for _, fav := range favorites {
-		usersToPullInfoFor = append(usersToPullInfoFor, *fav.User)
+		username := fav.User.ScreenName
+		if _, exists := usersInfo[username]; !exists {
+			usersInfo[username] = *fav.User
+		}
 	}
+
+	tweetContent := favorites[0].Text
+	tweetCreator := favorites[0].User.ScreenName
+	fmt.Printf("liked tweet: %s by %s", tweetContent, tweetCreator)
 
 }
