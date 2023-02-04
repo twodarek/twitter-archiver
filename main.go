@@ -31,4 +31,5 @@ func main() {
 	for _, fav := range favorites {
 		usersToPullInfoFor = append(usersToPullInfoFor, *fav.User)
 	}
+
 }

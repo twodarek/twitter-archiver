@@ -7,6 +7,9 @@ github.com/dghubble/oauth1
 # github.com/dghubble/sling v1.4.0
 ## explicit; go 1.16
 github.com/dghubble/sling
+# github.com/g8rswimmer/go-twitter/v2 v2.1.4
+## explicit; go 1.17
+github.com/g8rswimmer/go-twitter/v2
 # github.com/google/go-querystring v1.1.0
 ## explicit; go 1.10
 github.com/google/go-querystring/query
