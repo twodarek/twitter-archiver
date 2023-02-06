@@ -63,10 +63,6 @@ func main() {
 		}
 	}
 
-	tweetContent := favorites[0].Text
-	tweetCreator := favorites[0].User.ScreenName
-	fmt.Printf("liked tweet: %s by %s", tweetContent, tweetCreator)
-
 	for i, fav := range favorites {
 		if fav.Truncated {
 			fmt.Printf("favorite %d, author %s, content: %s\n", i, fav.User.ScreenName, fav.RetweetedStatus.FullText)
