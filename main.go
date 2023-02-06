@@ -3,8 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"os"
-
 	"github.com/dghubble/oauth1"
 	"github.com/twodarek/go-twitter/twitter"
 	"github.com/twodarek/twitter-archiver/util"
@@ -31,58 +29,76 @@ func main() {
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		fmt.Printf("Error connecting to database: %s", err)
-		os.Exit(1)
+		//os.Exit(1)
 	}
 	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {
 		fmt.Printf("Error pinging to database: %s", err)
-		os.Exit(1)
+		//os.Exit(1)
 	}
 
 	fmt.Println("Successfully connected to database!")
 
+	// This _should_ be larger than the most recent tweet favorited (so that we get the most recent favorited tweets
+	nextRunMaxID := int64(2000000000000000000)
+	stillRunning := 1
+	tmpLoopControl := 0
+
 	truePtr := true
-	listParams := twitter.FavoriteListParams{
-		ScreenName:      "thomaswodarek",
-		Count:           10,
-		IncludeEntities: &truePtr,
-		TweetMode:       "extended",
-	}
-	favorites, res, err := client.Favorites.List(&listParams)
-	if err != nil || res.StatusCode > 299 {
-		fmt.Printf("Unable to get list of favorite tweets.  Error: %s", err)
-	}
-
-	usersInfo := map[string]twitter.User{}
-	for _, fav := range favorites {
-		username := fav.User.ScreenName
-		if _, exists := usersInfo[username]; !exists {
-			usersInfo[username] = *fav.User
+	for stillRunning >= 1 {
+		listParams := twitter.FavoriteListParams{
+			ScreenName:      "thomaswodarek",
+			Count:           10,
+			IncludeEntities: &truePtr,
+			TweetMode:       "extended",
+			MaxID:           nextRunMaxID,
 		}
-	}
-
-	for i, fav := range favorites {
-		if fav.Truncated {
-			fmt.Printf("favorite %d, author %s, content: %s\n", i, fav.User.ScreenName, fav.RetweetedStatus.FullText)
-		} else {
-			fmt.Printf("favorite %d, author: %s, content: %s\n", i, fav.User.ScreenName, fav.FullText)
+		favorites, res, err := client.Favorites.List(&listParams)
+		if err != nil || res.StatusCode > 299 {
+			fmt.Printf("Unable to get list of favorite tweets.  Error: %s", err)
 		}
 
-		if fav.ExtendedEntities != nil {
-			for j, media := range fav.ExtendedEntities.Media {
-				downloadableMediaUrl := ""
-				switch media.Type {
-				case util.TwitterMediaTypePhoto:
-					downloadableMediaUrl = media.MediaURLHttps
-				case util.TwitterMediaTypeVideo, util.TwitterMediaTypeAnimatedGif:
-					downloadableMediaUrl = util.GetHighestBitrateVariant(media.VideoInfo.Variants).URL
-				}
+		if len(favorites) < 1 || tmpLoopControl > 2 {
+			stillRunning = 0
+		}
 
-				fmt.Printf("MEDIA FOUND!! idx: %d, type: %s, url: %s\n", j, media.Type, downloadableMediaUrl)
+		usersInfo := map[string]twitter.User{}
+		for _, fav := range favorites {
+			username := fav.User.ScreenName
+			if _, exists := usersInfo[username]; !exists {
+				usersInfo[username] = *fav.User
 			}
 		}
-		fmt.Printf("\n\n\n\n")
+
+		for i, fav := range favorites {
+			if fav.ID < nextRunMaxID {
+				nextRunMaxID = fav.ID
+			}
+
+			if fav.Truncated {
+				fmt.Printf("favorite %d, author %s, content: %s\n", i, fav.User.ScreenName, fav.RetweetedStatus.FullText)
+			} else {
+				fmt.Printf("favorite %d, author: %s, content: %s\n", i, fav.User.ScreenName, fav.FullText)
+			}
+
+			if fav.ExtendedEntities != nil {
+				for j, media := range fav.ExtendedEntities.Media {
+					downloadableMediaUrl := ""
+					switch media.Type {
+					case util.TwitterMediaTypePhoto:
+						downloadableMediaUrl = media.MediaURLHttps
+					case util.TwitterMediaTypeVideo, util.TwitterMediaTypeAnimatedGif:
+						downloadableMediaUrl = util.GetHighestBitrateVariant(media.VideoInfo.Variants).URL
+					}
+
+					fmt.Printf("MEDIA FOUND!! idx: %d, type: %s, url: %s\n", j, media.Type, downloadableMediaUrl)
+				}
+			}
+			fmt.Printf("\n\n\n\n")
+		}
+		tmpLoopControl++
+		fmt.Printf("LOOP: %d\n", tmpLoopControl)
 	}
 }
