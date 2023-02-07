@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/dghubble/oauth1 v0.7.1
+	github.com/g8rswimmer/go-twitter/v2 v2.1.5
 	github.com/lib/pq v1.10.7
 	github.com/spf13/viper v1.15.0
 	github.com/twodarek/go-twitter v0.0.0-20221115042815-bbc476854b8d
