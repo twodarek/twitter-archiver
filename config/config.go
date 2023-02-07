@@ -9,6 +9,7 @@ type Config struct {
 	ConsumerSecret string `mapstructure:"API_KEY_SECRET"`
 	AccessToken    string `mapstructure:"ACCESS_TOKEN"`
 	AccessSecret   string `mapstructure:"ACCESS_TOKEN_SECRET"`
+	APIBearerToken string `mapstructure:"BEARER_TOKEN"`
 
 	DatabaseUser string `mapstructure:"DB_USER"`
 	DatabasePass string `mapstructure:"DB_PASS"`
