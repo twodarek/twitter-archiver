@@ -68,13 +68,23 @@ func main() {
 	tmpLoopControl := 0
 	tweetExpansions := []v2.Expansion{v2.ExpansionAuthorID, v2.ExpansionReferencedTweetsID, v2.ExpansionInReplyToUserID, v2.ExpansionAttachmentsMediaKeys, v2.ExpansionEntitiesMentionsUserName, v2.ExpansionReferencedTweetsIDAuthorID}
 
+	lowestTweetIDInDB, err := util.GetLowestTweetId(db)
+	lowestTweetIDInDBInt, err := strconv.ParseInt(lowestTweetIDInDB, 10, 64)
+	if err != nil {
+		fmt.Printf("Error parsing lowestTweetIDInDB into int64: %s", err)
+	} else {
+		if lowestTweetIDInDBInt < nextRunMaxID {
+			nextRunMaxID = lowestTweetIDInDBInt
+		}
+	}
+
 	tweetIDs := []string{}
 
 	truePtr := true
 	for stillRunning >= 1 {
 		listParams := twitter.FavoriteListParams{
 			ScreenName:      "thomaswodarek",
-			Count:           10,
+			Count:           200,
 			IncludeEntities: &truePtr,
 			TweetMode:       "extended",
 			MaxID:           nextRunMaxID,
@@ -132,7 +142,7 @@ func main() {
 			// tweet_fulltext, tweet_creator, tweet_json, media_path, media_type
 			err = util.InsertFavoritedTweet(fulltext, fav, mediaType, db)
 			if err != nil {
-				fmt.Sprintf("Error attempting to store tweet %d to the database.  Error: %s", fav.ID, err)
+				fmt.Printf("Error attempting to store tweet %d to the database.  Error: %s", fav.ID, err)
 			}
 
 			fmt.Printf("\n\n\n\n")
@@ -148,7 +158,7 @@ func main() {
 		PaginationToken: "",
 	})
 	if err != nil {
-		fmt.Sprintf("Unable to lookup conversation IDs from the twitter api.  Error: %s", err)
+		fmt.Printf("Unable to lookup conversation IDs from the twitter api.  Error: %s", err)
 	}
 
 	conversationIDsToPull := []string{}
@@ -175,10 +185,16 @@ func main() {
 	for _, conversationID := range conversationIDsToPull {
 		conversationTweets, err := v2client.TweetSearch(context.Background(), fmt.Sprintf("conversation_id:%s", conversationID), searchOpts)
 		if err != nil {
-			fmt.Sprintf("Unable to find tweets by conversation ID %s, Error: %s", conversationID, err)
+			fmt.Printf("Unable to find tweets by conversation ID %s, Error: %s", conversationID, err)
 		}
-		for _, tweet := range conversationTweets.Raw.Tweets {
-			tweetIDsFromConversations = append(tweetIDsFromConversations, tweet.ID)
+		if conversationTweets.Raw != nil {
+			for _, tweet := range conversationTweets.Raw.Tweets {
+				tweetIDsFromConversations = append(tweetIDsFromConversations, tweet.ID)
+				err := util.InsertConversationID(conversationID, tweet.ID, db)
+				if err != nil {
+					fmt.Printf("Unable to store conversation_id %s, tweet_it %s because of error.  Error: %s", conversationID, tweet.ID, err)
+				}
+			}
 		}
 	}
 
