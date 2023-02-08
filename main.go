@@ -8,6 +8,7 @@ import (
 	"github.com/twodarek/go-twitter/twitter"
 	"github.com/twodarek/twitter-archiver/util"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -50,14 +51,14 @@ func main() {
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		fmt.Printf("Error connecting to database: %s", err.Error())
-		//os.Exit(1)
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {
 		fmt.Printf("Error pinging to database: %s", err.Error())
-		//os.Exit(1)
+		os.Exit(1)
 	}
 
 	fmt.Println("Successfully connected to database!")
@@ -91,8 +92,10 @@ func main() {
 		}
 		favorites, res, err := client.Favorites.List(&listParams)
 		if err != nil {
-			if res.StatusCode > 299 && res.StatusCode < 500 {
+			if res.StatusCode > 299 {
 				fmt.Printf("Unable to get list of favorite tweets.  Error: %s", err)
+				stillRunning = 0
+				continue
 			}
 		}
 
@@ -108,7 +111,7 @@ func main() {
 			}
 		}
 
-		for i, fav := range favorites {
+		for _, fav := range favorites {
 			if fav.ID < nextRunMaxID {
 				nextRunMaxID = fav.ID
 			}
@@ -116,10 +119,10 @@ func main() {
 
 			fulltext := ""
 			if fav.Truncated {
-				fmt.Printf("favorite %d, author %s, content: %s\n", i, fav.User.ScreenName, fav.RetweetedStatus.FullText)
+				//fmt.Printf("favorite %d, author %s, content: %s\n", i, fav.User.ScreenName, fav.RetweetedStatus.FullText)
 				fulltext = fav.RetweetedStatus.FullText
 			} else {
-				fmt.Printf("favorite %d, author: %s, content: %s\n", i, fav.User.ScreenName, fav.FullText)
+				//fmt.Printf("favorite %d, author: %s, content: %s\n", i, fav.User.ScreenName, fav.FullText)
 				fulltext = fav.FullText
 			}
 
@@ -145,16 +148,16 @@ func main() {
 				fmt.Printf("Error attempting to store tweet %d to the database.  Error: %s", fav.ID, err)
 			}
 
-			fmt.Printf("\n\n\n\n")
+			//fmt.Printf("\n\n\n\n")
 		}
-		tmpLoopControl++
-		fmt.Printf("LOOP: %d\n\n\n\n", tmpLoopControl)
+		//tmpLoopControl++
+		fmt.Printf("LOOP: %d\n\n", tmpLoopControl)
 	}
 
 	conversationLookupTweetRes, err := v2client.ListTweetLookup(context.Background(), strings.Join(tweetIDs, ","), v2.ListTweetLookupOpts{
 		Expansions:      tweetExpansions,
 		TweetFields:     []v2.TweetField{v2.TweetFieldID, v2.TweetFieldConversationID},
-		MaxResults:      200,
+		MaxResults:      100,
 		PaginationToken: "",
 	})
 	if err != nil {
@@ -162,8 +165,12 @@ func main() {
 	}
 
 	conversationIDsToPull := []string{}
-	for _, tweet := range conversationLookupTweetRes.Raw.Tweets {
-		conversationIDsToPull = append(conversationIDsToPull, tweet.ConversationID)
+	if conversationLookupTweetRes != nil {
+		if conversationLookupTweetRes.Raw != nil {
+			for _, tweet := range conversationLookupTweetRes.Raw.Tweets {
+				conversationIDsToPull = append(conversationIDsToPull, tweet.ConversationID)
+			}
+		}
 	}
 
 	searchOpts := v2.TweetSearchOpts{
@@ -176,7 +183,7 @@ func main() {
 		StartTime:   time.Time{},
 		EndTime:     time.Time{},
 		SortOrder:   "",
-		MaxResults:  0,
+		MaxResults:  10,
 		NextToken:   "",
 		SinceID:     "",
 		UntilID:     "",
